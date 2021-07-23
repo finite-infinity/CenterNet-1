@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from .utils import _gather_feat, _transpose_and_gather_feat
 
+#将多个识别框变为一个（非极大值抑制，抑制置信度低的box）
 def _nms(heat, kernel=3):
     pad = (kernel - 1) // 2
 
@@ -14,14 +15,15 @@ def _nms(heat, kernel=3):
     keep = (hmax == heat).float()
     return heat * keep
 
+#
 def _left_aggregate(heat):
     '''
         heat: batchsize x channels x h x w
     '''
     shape = heat.shape 
-    heat = heat.reshape(-1, heat.shape[3])
-    heat = heat.transpose(1, 0).contiguous()
-    ret = heat.clone()
+    heat = heat.reshape(-1, heat.shape[3]) #[b, h*w, c]
+    heat = heat.transpose(1, 0).contiguous() #转置 contiguous()：复制heat且切断与heat联系
+    ret = heat.clone()  #新建与heat相同张量
     for i in range(1, heat.shape[0]):
         inds = (heat[i] >= heat[i - 1])
         ret[i] += ret[i - 1] * inds.float()

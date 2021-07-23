@@ -28,15 +28,15 @@ class ExdetDetector(BaseDetector):
   def process(self, images, return_time=False):
     with torch.no_grad():
       torch.cuda.synchronize()
-      output = self.model(images)[-1]
-      t_heat = output['hm_t'].sigmoid_()
-      l_heat = output['hm_l'].sigmoid_()
-      b_heat = output['hm_b'].sigmoid_()
-      r_heat = output['hm_r'].sigmoid_()
-      c_heat = output['hm_c'].sigmoid_()
+      output = self.model(images)[-1]  #输出字典
+      t_heat = output['hm_t'].sigmoid_()  #top
+      l_heat = output['hm_l'].sigmoid_()  #left
+      b_heat = output['hm_b'].sigmoid_()  #bottom
+      r_heat = output['hm_r'].sigmoid_()  #right
+      c_heat = output['hm_c'].sigmoid_()  #class
       torch.cuda.synchronize()
       forward_time = time.time()
-      if self.opt.reg_offset:
+      if self.opt.reg_offset:  #正则偏差
         dets = self.decode(t_heat, l_heat, b_heat, r_heat, c_heat, 
                       output['reg_t'], output['reg_l'],
                       output['reg_b'], output['reg_r'], 
@@ -55,23 +55,23 @@ class ExdetDetector(BaseDetector):
       return output, dets
 
   def debug(self, debugger, images, dets, output, scale=1):
-    detection = dets.detach().cpu().numpy().copy()
-    detection[:, :, :4] *= self.opt.down_ratio
-    for i in range(1):
+    detection = dets.detach().cpu().numpy().copy()  #阶段反向传播梯度流
+    detection[:, :, :4] *= self.opt.down_ratio  
+    for i in range(1):      #images就一张图？
       inp_height, inp_width = images.shape[2], images.shape[3]
       pred_hm = np.zeros((inp_height, inp_width, 3), dtype=np.uint8)
       img = images[i].detach().cpu().numpy().transpose(1, 2, 0)
       img = ((img * self.std + self.mean) * 255).astype(np.uint8)
       parts = ['t', 'l', 'b', 'r', 'c']
       for p in parts:
-        tag = 'hm_{}'.format(p)
+        tag = 'hm_{}'.format(p)  
         pred = debugger.gen_colormap(
-          output[tag][i].detach().cpu().numpy(), (inp_height, inp_width))
+          output[tag][i].detach().cpu().numpy(), (inp_height, inp_width)) #predict为每种参数生成彩色heatmap的图
         if p != 'c':
-          pred_hm = np.maximum(pred_hm, pred)
+          pred_hm = np.maximum(pred_hm, pred)   #最大化heatmap
         else:
           debugger.add_blend_img(
-            img, pred, 'pred_{}_{:.1f}'.format(p, scale))
+            img, pred, 'pred_{}_{:.1f}'.format(p, scale)) #将图像和预测合并（预测占70%）
       debugger.add_blend_img(img, pred_hm, 'pred_{:.1f}'.format(scale))
       debugger.add_img(img, img_id='out_{:.1f}'.format(scale))
       for k in range(len(detection[i])):

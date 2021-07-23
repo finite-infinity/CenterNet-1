@@ -16,11 +16,11 @@ class Debugger(object):
     self.imgs = {}
     self.theme = theme
     colors = [(color_list[_]).astype(np.uint8) \
-            for _ in range(len(color_list))]
-    self.colors = np.array(colors, dtype=np.uint8).reshape(len(colors), 1, 1, 3)
+            for _ in range(len(color_list))]   #挨个转换类型，直接转会变0
+    self.colors = np.array(colors, dtype=np.uint8).reshape(len(colors), 1, 1, 3) #batch w h （因为是数，全是1）三通道
     if self.theme == 'white':
-      self.colors = self.colors.reshape(-1)[::-1].reshape(len(colors), 1, 1, 3)
-      self.colors = np.clip(self.colors, 0., 0.6 * 255).astype(np.uint8)
+      self.colors = self.colors.reshape(-1)[::-1].reshape(len(colors), 1, 1, 3)  #翻转COLOR的排序
+      self.colors = np.clip(self.colors, 0., 0.6 * 255).astype(np.uint8)  #只取前0.6的颜色
     self.dim_scale = 1
     if dataset == 'coco_hp':
       self.names = ['p']
@@ -83,6 +83,7 @@ class Debugger(object):
     if pause:
       cv2.waitKey()
   
+  #融合两张图
   def add_blend_img(self, back, fore, img_id='blend', trans=0.7):
     if self.theme == 'white':
       fore = 255 - fore
@@ -90,7 +91,7 @@ class Debugger(object):
       fore = cv2.resize(fore, (back.shape[1], back.shape[0]))
     if len(fore.shape) == 2:
       fore = fore.reshape(fore.shape[0], fore.shape[1], 1)
-    self.imgs[img_id] = (back * (1. - trans) + fore * trans)
+    self.imgs[img_id] = (back * (1. - trans) + fore * trans)  #直接像素相加
     self.imgs[img_id][self.imgs[img_id] > 255] = 255
     self.imgs[img_id][self.imgs[img_id] < 0] = 0
     self.imgs[img_id] = self.imgs[img_id].astype(np.uint8).copy()
@@ -113,18 +114,18 @@ class Debugger(object):
     return color_map
     '''
 
-  
+  #生成
   def gen_colormap(self, img, output_res=None):
     img = img.copy()
-    c, h, w = img.shape[0], img.shape[1], img.shape[2]
+    c, h, w = img.shape[0], img.shape[1], img.shape[2]  
     if output_res is None:
-      output_res = (h * self.down_ratio, w * self.down_ratio)
-    img = img.transpose(1, 2, 0).reshape(h, w, c, 1).astype(np.float32)
+      output_res = (h * self.down_ratio, w * self.down_ratio)  #变形
+    img = img.transpose(1, 2, 0).reshape(h, w, c, 1).astype(np.float32)   #Pytorch中使用的数据格式与plt.imshow()函数的格式不一致，Pytorch中为[Channels, H, W]
     colors = np.array(
-      self.colors, dtype=np.float32).reshape(-1, 3)[:c].reshape(1, 1, c, 3)
+      self.colors, dtype=np.float32).reshape(-1, 3)[:c].reshape(1, 1, c, 3)  #对应图片每个像素和通道，有三元组颜色
     if self.theme == 'white':
-      colors = 255 - colors
-    color_map = (img * colors).max(axis=2).astype(np.uint8)
+      colors = 255 - colors  #背景是白的就转换颜色
+    color_map = (img * colors).max(axis=2).astype(np.uint8)  #在channel维度上取最大的（即最深的颜色）
     color_map = cv2.resize(color_map, (output_res[0], output_res[1]))
     return color_map
     

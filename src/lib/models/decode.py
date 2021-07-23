@@ -18,14 +18,14 @@ def _nms(heat, kernel=3):
 #
 def _left_aggregate(heat):
     '''
-        heat: batchsize x channels x h x w
+        heat: batchsize x channels x h x w  （b, c, h, w）
     '''
     shape = heat.shape 
-    heat = heat.reshape(-1, heat.shape[3]) #[b, h*w, c]
+    heat = heat.reshape(-1, heat.shape[3]) #全部压扁，变为b*c*h行，w列
     heat = heat.transpose(1, 0).contiguous() #转置 contiguous()：复制heat且切断与heat联系
     ret = heat.clone()  #新建与heat相同张量
     for i in range(1, heat.shape[0]):
-        inds = (heat[i] >= heat[i - 1])
+        inds = (heat[i] >= heat[i - 1])  #
         ret[i] += ret[i - 1] * inds.float()
     return (ret - heat).transpose(1, 0).reshape(shape) 
 

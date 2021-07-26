@@ -48,20 +48,20 @@ class BaseDetector(object):
       c = np.array([new_width // 2, new_height // 2], dtype=np.float32)
       s = np.array([inp_width, inp_height], dtype=np.float32)
 
-    trans_input = get_affine_transform(c, s, 0, [inp_width, inp_height])
+    trans_input = get_affine_transform(c, s, 0, [inp_width, inp_height])  #仿射变换的变换矩阵
     resized_image = cv2.resize(image, (new_width, new_height))
     inp_image = cv2.warpAffine(
       resized_image, trans_input, (inp_width, inp_height),
       flags=cv2.INTER_LINEAR)
-    inp_image = ((inp_image / 255. - self.mean) / self.std).astype(np.float32)
+    inp_image = ((inp_image / 255. - self.mean) / self.std).astype(np.float32)  #标准化
 
     images = inp_image.transpose(2, 0, 1).reshape(1, 3, inp_height, inp_width)
     if self.opt.flip_test:
       images = np.concatenate((images, images[:, :, :, ::-1]), axis=0)
-    images = torch.from_numpy(images)
+    images = torch.from_numpy(images)    #数组转换成张量
     meta = {'c': c, 's': s, 
             'out_height': inp_height // self.opt.down_ratio, 
-            'out_width': inp_width // self.opt.down_ratio}
+            'out_width': inp_width // self.opt.down_ratio}   #整除下采样率 
     return images, meta
 
   def process(self, images, return_time=False):

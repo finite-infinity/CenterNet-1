@@ -29,14 +29,20 @@ dataset_factory = {
 
 _sample_factory = {
   'exdet': EXDetDataset,
-  'ctdet': CTDetDataset,
-  #'ctdet': CTDetDataset_WithBackGround,
+  #'ctdet': CTDetDataset,
+  'ctdet': CTDetDataset_WithBackGround,
   'ddd': DddDataset,
   'multi_pose': MultiPoseDataset
 }
 
 
 def get_dataset(dataset, task):
+  '''
+        Dataset继承了data_factory和sample_factory两类
+        一般构建Dataset会继承torch.utils.data.Dataset, 
+        一般都会重写__init__ 、 __len__和__getitem__ 
+        前两个在dataset中，最后一个在sample中
+ '''
   class Dataset(dataset_factory[dataset], _sample_factory[task]):
     pass
   return Dataset

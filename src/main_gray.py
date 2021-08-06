@@ -12,11 +12,15 @@ from opts import opts
 from models.model import create_model, load_model, save_model
 from models.data_parallel import DataParallel
 from logger import Logger
-from datasets.dataset_factory import get_dataset
+from datasets.dataset_factory_gray import get_dataset
 from trains.train_factory import train_factory
+from intertools import product
 
 
 def main(opt):
+  parameters = dict(lr=[1e-4, 5e-4, 5e-5],
+                    center_threshold = [0.1, 0.05, 0.2])
+
   torch.manual_seed(opt.seed)
   torch.backends.cudnn.benchmark = not opt.not_cuda_benchmark and not opt.test
   Dataset = get_dataset(opt.dataset, opt.task)
@@ -52,7 +56,7 @@ def main(opt):
   )
 
   if opt.test:
-    _, preds = trainer.val(0, val_loader) 
+    _, preds = trainer.val(0, val_loader)
     val_loader.dataset.run_eval(preds, opt.save_dir)
     return
 

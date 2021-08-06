@@ -8,18 +8,21 @@ import os
 
 import torch
 import torch.utils.data
-from opts import opts
+from opts_withangle import opts
 from models.model import create_model, load_model, save_model
 from models.data_parallel import DataParallel
 from logger import Logger
-from datasets.dataset_factory import get_dataset
-from trains.train_factory import train_factory
+from datasets.dataset_factory_withangle import get_dataset
+from trains.train_factory_withangle import train_factory
 
 
 def main(opt):
   torch.manual_seed(opt.seed)
   torch.backends.cudnn.benchmark = not opt.not_cuda_benchmark and not opt.test
+  # 返回class Dataset(dataset_factory[dataset], _sample_factory[ctdet]):
+  #  pass
   Dataset = get_dataset(opt.dataset, opt.task)
+  # input_res w h 更新，set head
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
   print(opt)
 
@@ -28,10 +31,12 @@ def main(opt):
   os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
   opt.device = torch.device('cuda' if opt.gpus[0] >= 0 else 'cpu')
   
+  # 建立模型
   print('Creating model...')
   model = create_model(opt.arch, opt.heads, opt.head_conv)
   # backbone，hm wh的channel，输出层channel
-  # dla_34 {"hm": num_class, "wh": 2, "reg": 2} 256
+  # dla_34 {"hm": num_class, "wh": 2, "reg": 2} 256，
+
   optimizer = torch.optim.Adam(model.parameters(), opt.lr)
   start_epoch = 0
   if opt.load_model != '':
@@ -52,12 +57,13 @@ def main(opt):
   )
 
   if opt.test:
-    _, preds = trainer.val(0, val_loader) 
+    # bboxes
+    _, preds = trainer.val(0, val_loader)    # 推断
     val_loader.dataset.run_eval(preds, opt.save_dir)
     return
 
   train_loader = torch.utils.data.DataLoader(
-      Dataset(opt, 'train'),
+      Dataset(opt, 'train'),  # Dataset类，含init getitem等函数
       batch_size=opt.batch_size, 
       shuffle=True,
       num_workers=opt.num_workers,
@@ -69,6 +75,8 @@ def main(opt):
   best = 1e10
   for epoch in range(start_epoch + 1, opt.num_epochs + 1):
     mark = epoch if opt.save_all else 'last'
+    # 训练，loss, hm_loss, wh_loss, off_loss
+    # 每次训练重新生成训练集
     log_dict_train, _ = trainer.train(epoch, train_loader)
     logger.write('epoch: {} |'.format(epoch))
     for k, v in log_dict_train.items():
@@ -78,6 +86,7 @@ def main(opt):
       save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(mark)), 
                  epoch, model, optimizer)
       with torch.no_grad():
+        # loss，bboxes
         log_dict_val, preds = trainer.val(epoch, val_loader)
 
       #log_dict_val, preds = trainer.val(epoch, val_loader)
@@ -85,6 +94,7 @@ def main(opt):
       for k, v in log_dict_val.items():
         logger.scalar_summary('val_{}'.format(k), v, epoch)
         logger.write('{} {:8f} | '.format(k, v))
+      # 保存loss最小的模型
       if log_dict_val[opt.metric] < best:
         best = log_dict_val[opt.metric]
         save_model(os.path.join(opt.save_dir, 'model_best.pth'), 

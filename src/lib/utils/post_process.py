@@ -81,13 +81,16 @@ def ddd_post_process(dets, c, s, calibs, opt):
 
 
 def ctdet_post_process(dets, c, s, h, w, num_classes):
-  # dets: batch x max_dets x dim
+  # dets: batch x max_dets x dim   (b,k,6) [x,y,w,h,score,class]
   # return 1-based class det dict
   ret = []
   for i in range(dets.shape[0]):
     top_preds = {}
+    # 仿射变换为output_size
+    # xy
     dets[i, :, :2] = transform_preds(
           dets[i, :, 0:2], c[i], s[i], (w, h))
+    # wh
     dets[i, :, 2:4] = transform_preds(
           dets[i, :, 2:4], c[i], s[i], (w, h))
     classes = dets[i, :, -1]
@@ -97,11 +100,11 @@ def ctdet_post_process(dets, c, s, h, w, num_classes):
         dets[i, inds, :4].astype(np.float32),
         dets[i, inds, 4:5].astype(np.float32)], axis=1).tolist()
     ret.append(top_preds)
-  return ret
+  return ret         # [bbox,score]
 
 
 def multi_pose_post_process(dets, c, s, h, w):
-  # dets: batch x max_dets x 40
+  # dets: batch x max_dets x 40  
   # return list of 39 in image coord
   ret = []
   for i in range(dets.shape[0]):
